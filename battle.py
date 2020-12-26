@@ -10,12 +10,14 @@ self.board[i][j] может принимать значения:
 
 Что нового:
 
-Сделана функция удаления двойки и красной зоны вокруг неё, остался поворот двойки
+Сделаны функции удаления и поворота двойки и красной зоны вокруг неё
+Сделана функция установки тройки
+Теперь корабли поворачиваются по нажатию кнопки k 
 Очищен код от ненужных повторов поиска номера клетки при нажатиии на клетку
 
 Что ещё нужно сделать:
-1. Написать функции для расстановки 3- и 4-хпалубных кораблей вместе с красной подсветкой
-2. Написать функции для поворота больших кораблей (например, по нажатию кнопки какой-нибудь)
+1. Написать функции для расстановки 4-хпалубного корабля вместе с красной подсветкой
+2. Написать функции для удаления 3-х и 4-х палубных
 3. Написать функции для рандомной расстановки кораблей компьютера
 0. На вторичном поле между зонами игрока и компьютера поставить стрелочку (кто ходит)
 4. Написать функции игры (поочерёдные удары)
@@ -27,8 +29,9 @@ class Board:
         self.numberofcells = 0
         self.mouse_ship = False
         self.running = False
-        self.num1, self.num2, self.num3, self.num4 = '4', '3', '2', '1'
+        self.num1, self.num2, self.num3, self.num4 = '4', '3', '2', '1'  # кол-во оставшихся кораблей
         self.stage2 = False  # при значении True ограничивает действия с кораблями во время игры
+        self.turning = False  # при значении True корабль ставится вертикально, False - горизонтально
 
     def render1(self, s):  # рисует кораблики (справа) и поле, отвечает за кол-во корабликов
         for j in range(10):
@@ -96,10 +99,7 @@ class Board:
             for j in range(10):
                 if self.board[i][j] != 0 and self.board[i][j] != 5:
                     self.red_zones(i, j)
-                if self.board[i][j] == 1:
                     pygame.draw.rect(screen, (0, 100, 100), (i * 40 + 10, j * 40 + 10, 40, 40))
-                if self.board[i][j] == 2 and i != 9:
-                    pygame.draw.rect(screen, (0, 100, 100), (i * 40 + 10, j * 40 + 10, 80, 40))
         for i in range(10):
             for j in range(10):
                 if self.board[i][j] == 5:
@@ -132,17 +132,6 @@ class Board:
                 if self.board[i - 1][j + 1] == 0:
                     self.board[i - 1][j + 1] = 5
 
-    def set_single(self):  # ставит единичку
-        for i in range(10):
-            if event.pos[0] > i * 40 + 10 and event.pos[0] < (i + 1) * 40 + 10:
-                for j in range(10):
-                    if event.pos[1] > j * 40 + 10 and event.pos[1] < (j + 1) * 40 + 10:
-                        if board.proof(screen, i, j):
-                            pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 40, 40))
-                            self.board[i][j] = 1
-                            self.mouse_ship = False
-                            self.num1 = str(int(self.num1) - 1)
-
     def del_single(self, i, j):  # удаляет единичку
         self.num1 = str(int(self.num1) + 1)
         self.board[i][j] = 0
@@ -163,49 +152,89 @@ class Board:
         if i > 0 and j < 9:
             self.board[i - 1][j + 1] = 0
 
-    def del_double(self, i, j, nap):
+    def del_double(self, i, j, nap):  # удаление поставленных двоек
         self.num2 = str(int(self.num2) + 1)
         self.board[i][j] = 0
         if nap == 2:  # если двойка стоит на значениях (i, j)(i + 1, j)
             self.board[i + 1][j] = 0
-        if i > 0:
-            self.board[i - 1][j] = 0
-        if j > 0 and i > 0:
-            self.board[i - 1][j - 1] = 0
-        if j > 0:
-            self.board[i][j - 1] = 0
-            self.board[i + 1][j - 1] = 0
-        if i < 8:
-            self.board[i + 2][j] = 0
-        if i < 8 and j > 0:
-            self.board[i + 2][j - 1] = 0
-        if i < 8 and j < 9:
-            self.board[i + 2][j + 1] = 0
-        if i > 0 and j < 9:
-            self.board[i - 1][j + 1] = 0
-        if j < 9:
-            self.board[i][j + 1] = 0
-        self.board[i + 1][j + 1] = 0
+            if i > 0:
+                self.board[i - 1][j] = 0
+            if j > 0 and i > 0:
+                self.board[i - 1][j - 1] = 0
+            if j > 0:
+                self.board[i][j - 1] = 0
+                self.board[i + 1][j - 1] = 0
+            if i < 8:
+                self.board[i + 2][j] = 0
+            if i < 8 and j > 0:
+                self.board[i + 2][j - 1] = 0
+            if i < 8 and j < 9:
+                self.board[i + 2][j + 1] = 0
+            if i > 0 and j < 9:
+                self.board[i - 1][j + 1] = 0
+            if j < 9:
+                self.board[i][j + 1] = 0
+                self.board[i + 1][j + 1] = 0
         if nap == 4:  # если двойка стоит на значениях (i, j)(i - 1, j)
-            self.board[i + 1][j] = 0
-        if i > 1:
-            self.board[i - 2][j] = 0
-        if j > 1 and i > 0:
-            self.board[i - 2][j - 1] = 0
-        if j > 0:
+            self.board[i - 1][j] = 0
+            if i > 1:
+                self.board[i - 2][j] = 0
+            if i > 1 and j > 0:
+                self.board[i - 2][j - 1] = 0
+            if j > 0:
+                self.board[i][j - 1] = 0
+                self.board[i - 1][j - 1] = 0
+            if i < 9:
+                self.board[i + 1][j] = 0
+            if i < 9 and j > 0:
+                self.board[i + 1][j - 1] = 0
+            if i < 9 and j < 9:
+                self.board[i + 1][j + 1] = 0
+            if i > 1 and j < 9:
+                self.board[i - 2][j + 1] = 0
+            if j < 9:
+                self.board[i][j + 1] = 0
+                self.board[i - 1][j + 1] = 0
+        if nap == 1:  # если двойка стоит на значениях (i, j)(i, j - 1)
             self.board[i][j - 1] = 0
-            self.board[i - 1][j - 1] = 0
-        if i < 9:
-            self.board[i + 1][j] = 0
-        if i < 9 and j > 0:
-            self.board[i + 1][j - 1] = 0
-        if i < 9 and j < 9:
-            self.board[i + 1][j + 1] = 0
-        if i > 1 and j < 9:
-            self.board[i - 2][j + 1] = 0
-        if j < 9:
+            if i > 0:
+                self.board[i - 1][j] = 0
+                self.board[i - 1][j - 1] = 0
+            if i < 9:
+                self.board[i + 1][j] = 0
+                self.board[i + 1][j - 1] = 0
+            if j > 1 and i > 0:
+                self.board[i - 1][j - 2] = 0
+            if j > 1:
+                self.board[i][j - 2] = 0
+            if j < 9:
+                self.board[i][j + 1] = 0
+            if i < 9 and j > 1:
+                self.board[i + 1][j - 2] = 0
+            if i < 9 and j < 9:
+                self.board[i + 1][j + 1] = 0
+            if i > 0 and j < 9:
+                self.board[i - 1][j + 1] = 0
+        if nap == 3:  # если двойка стоит на значениях (i, j)(i, j + 1)
             self.board[i][j + 1] = 0
-            self.board[i - 1][j + 1] = 0
+            if i > 0:
+                self.board[i - 1][j] = 0
+                self.board[i - 1][j + 1] = 0
+            if i < 9:
+                self.board[i + 1][j] = 0
+                self.board[i + 1][j + 1] = 0
+            if j > 0 and i > 0:
+                self.board[i - 1][j - 1] = 0
+            if j > 0:
+                self.board[i][j - 1] = 0
+            if j < 8:
+                self.board[i][j + 2] = 0
+            if i < 9 and j > 0:
+                self.board[i + 1][j - 1] = 0
+            if i < 9 and j < 8:
+                self.board[i + 1][j + 2] = 0
+            if i > 0 and j < 8:
+                self.board[i - 1][j + 2] = 0
 
     def del_other(self, i, j, nap):
         if self.board[i][j] == 2:
@@ -260,46 +289,90 @@ class Board:
             elif s.get_at((event.pos[0], event.pos[1] + 40))[:3] == (0, 100, 100):
                 self.del_other(i, j, 3)
 
-    def set_double(self):  # ставит двойной корабль
-        for i in range(10):
-            if event.pos[0] > i * 40 + 10 and event.pos[0] < (i + 1) * 40 + 10:
-                for j in range(10):
-                    if event.pos[1] > j * 40 + 10 and event.pos[1] < (j + 1) * 40 + 10:
-                        if i <= 8:
-                            if board.proof(screen, i, j) and board.proof(screen, i + 1, j):
-                                pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 80, 40))
-                                self.board[i][j] = 2
-                                self.board[i + 1][j] = 2
-                                self.mouse_ship = False
-                                self.num2 = str(int(self.num2) - 1)
+    def set_single(self, i, j):  # ставит единичку
+        if board.proof(screen, i, j):
+            pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 40, 40))
+            self.board[i][j] = 1
+            self.mouse_ship = False
+            self.num1 = str(int(self.num1) - 1)
 
-    def set_triple(self):
-        pass
+    def set_double(self, i, j):  # ставит двойной корабль
+        if self.turning:
+            if j <= 8:
+                if board.proof(screen, i, j) and board.proof(screen, i, j + 1):
+                    pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 40, 80))
+                    self.board[i][j] = 2
+                    self.board[i][j + 1] = 2
+                    self.mouse_ship = False
+                    self.turning = False
+                    self.num2 = str(int(self.num2) - 1)
+        else:
+            if i <= 8:
+                if board.proof(screen, i, j) and board.proof(screen, i + 1, j):
+                    pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 80, 40))
+                    self.board[i][j] = 2
+                    self.board[i + 1][j] = 2
+                    self.mouse_ship = False
+                    self.num2 = str(int(self.num2) - 1)
 
-    def set_four(self):
+    def set_triple(self, i, j):
+        if self.turning:
+            if j <= 7:
+                if board.proof(screen, i, j) and board.proof(screen, i, j + 1) and board.proof(screen, i, j + 2):
+                    pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 40, 120))
+                    self.board[i][j] = 3
+                    self.board[i][j + 1] = 3
+                    self.board[i][j + 2] = 3
+                    self.mouse_ship = False
+                    self.turning = False
+                    self.num3 = str(int(self.num3) - 1)
+        else:
+            if i <= 7:
+                if board.proof(screen, i, j) and board.proof(screen, i + 1, j) and board.proof(screen, i + 2, j):
+                    pygame.draw.rect(screen, (0, 200, 200), (i * 40, j * 40, 120, 40))
+                    self.board[i][j] = 3
+                    self.board[i + 1][j] = 3
+                    self.board[i + 2][j] = 3
+                    self.mouse_ship = False
+                    self.num3 = str(int(self.num3) - 1)
+
+    def set_four(self, i, j):
         pass
 
     def set_ship(self):  # определяет размер кораблика
         if self.mouse_ship:  # определяет, был ли нажат кораблик
-            if self.numberofcells == 1:
-                self.set_single()
-            if self.numberofcells == 2:
-                self.set_double()
-            if self.numberofcells == 3:
-                self.set_triple()
-            if self.numberofcells == 4:
-                self.set_four()
+            for i in range(10):  # определяет позицию первой секции кораблика
+                if event.pos[0] > i * 40 + 10 and event.pos[0] < (i + 1) * 40 + 10:
+                    for j in range(10):
+                        if event.pos[1] > j * 40 + 10 and event.pos[1] < (j + 1) * 40 + 10:
+                            if self.numberofcells == 1:
+                                self.set_single(i, j)
+                            if self.numberofcells == 2:
+                                self.set_double(i, j)
+                            if self.numberofcells == 3:
+                                self.set_triple(i, j)
+                            if self.numberofcells == 4:
+                                self.set_four(i, j)
 
     def get_cell(self, sc):  # вырисовывает нажатый курсорчик
         if self.mouse_ship:
             if self.numberofcells == 1:
                 pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 40, 40))
             elif self.numberofcells == 2:
-                pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 80, 40))
+                if self.turning:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 40, 80))
+                else:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 80, 40))
             elif self.numberofcells == 3:
-                pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 120, 40))
+                if self.turning:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 40, 120))
+                else:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 120, 40))
             else:
-                pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 160, 40))
+                if self.turning:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 40, 160))
+                else:
+                    pygame.draw.rect(sc, (0, 100, 100), (event.pos[0], event.pos[1], 160, 40))
 
     def starting(self):  # запуск вторичного поля
         for i in range(len(self.board)):
@@ -319,6 +392,11 @@ class Board:
             if event.pos[1] <= 265 and event.pos[1] >= 225:
                 if self.num2 != '0':
                     self.numberofcells = 2
+                    self.mouse_ship = True
+        if event.pos[0] <= 550 and event.pos[0] >= 430:
+            if event.pos[1] <= 210 and event.pos[1] >= 170:
+                if self.num3 != '0':
+                    self.numberofcells = 3
                     self.mouse_ship = True
         # проверка на удаление кораблика:
         if s.get_at((event.pos[0], event.pos[1]))[:3] == (0, 100, 100):  # при нажатии на кораблик удаляет
@@ -360,6 +438,12 @@ if __name__ == '__main__':
                 board.render1(screen)  # создание поля
                 board.ships(screen)  # заполнение кораблями
                 pygame.display.flip()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
+                if board.mouse_ship:
+                    if board.turning:
+                        board.turning = False
+                    else:
+                        board.turning = True
             else:
                 pass
         clock.tick(fps)
