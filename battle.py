@@ -2,23 +2,19 @@ import pygame
 from random import randint
 
 '''
-Что нового:
+Кораблики и вообще весь новый дизайн шикарны, ставлю лайк!
 
-Сделана расстановка четверок
-Сделано удаление троек и четверок
-Исправлено удаление двоек в нижних и правых неугловых клетках
-Изменена функция del_other. Теперь она удаляет тройки и четверки
-Добавлено создание поля для компьютера в переменной bot_board
-Функция red_zones была вынесена за пределы класса Board
-Была создана функция ships_generator
-После перехода во вторую стадию убирается красная зона игрока
-Был изменен дизайн
+Новое: 
+Написаны функции, ответственные за удары игрока и пометки подбитых игроком кораблей
+Написаны функции, отвечающие за пометки полей вокруг подбитых ранее кораблей
+    (т.е. куда бессмысленно бить)
+Добавлено количество оставшихся кораблей бота
+После победы игрока выводится слово "Победа"
 
 Что ещё нужно сделать:
 
-0. На вторичном поле между зонами игрока и компьютера поставить стрелочку (кто ходит)
-1. Написать функции игры (поочерёдные удары)
-2. Добавить небольшую табличку, которая будет показывать сколько осталось вражеских кораблей каждого вида
+1. Написать функцию ударов бота после промахов (я уже начал, называется udar_bota)
+2. На вторичном поле между зонами игрока и компьютера поставить стрелочку (кто ходит)
 '''
 
 class Board:
@@ -28,8 +24,14 @@ class Board:
         self.mouse_ship = False
         self.running = False
         self.num1, self.num2, self.num3, self.num4 = '4', '3', '2', '1'  # кол-во оставшихся кораблей
+        self.nu1, self.nu2, self.nu3, self.nu4 = '4', '3', '2', '1'  # кол-во оставшихся кораблей бота
         self.stage2 = False  # при значении True ограничивает действия с кораблями во время игры
+        self.stage3 = False  # при значении True ограничивает действия с кораблями во время игры
         self.turning = False  # при значении True корабль ставится вертикально, False - горизонтально
+        self.mimo = True
+        self.ranenie = []
+        self.end = False
+        self.porajenie = False
 
     def render1(self, s):  # рисует кораблики (справа) и поле, отвечает за кол-во корабликов
         for j in range(10):
@@ -67,13 +69,56 @@ class Board:
         else:
             pygame.draw.rect(s, (0, 150, 0), (460, 350, 150, 40))
 
-    def render2(self, screen):  # рисует два поля
+    def render2(self):  # рисует два поля
         for j in range(10):
             for i in range(10):
                 pygame.draw.rect(screen, ((150, 200, 255)), (10 + i * 40, 10 + j * 40, 40, 40), width=2)
         for j in range(10):
             for i in range(10):
                 pygame.draw.rect(screen, ((150, 200, 255)), (430 + i * 40, 10 + j * 40, 40, 40), width=2)
+        for i in range(10):
+            for j in range(10):
+                if self.board[i][j] != 0 and self.board[i][j] != 5:
+                    pygame.draw.rect(screen, (150, 200, 255), (i * 40 + 10, j * 40 + 10, 40, 40))
+                    pygame.draw.rect(screen, (0, 100, 255), (i * 40 + 10, j * 40 + 10, 40, 40), width=2)
+        if self.stage3:
+            for i in range(10):
+                for j in range(10):
+                    if bot_board2[i][j] == 6:
+                        pygame.draw.rect(screen, (255, 160, 160), (i * 40 + 430, j * 40 + 10, 40, 40))
+                        pygame.draw.rect(screen, (255, 80, 80), (i * 40 + 430, j * 40 + 10, 40, 40), width=2)
+                    if bot_board2[i][j] == 5:
+                        pygame.draw.rect(screen, (160, 160, 160), (i * 40 + 430, j * 40 + 10, 40, 40))
+                        pygame.draw.rect(screen, (80, 80, 80), (i * 40 + 430, j * 40 + 10, 40, 40), width=2)
+        if int(self.nu1) > 0:
+            pygame.draw.rect(screen, (150, 200, 255), (850, 280, 20, 20))
+            pygame.draw.rect(screen, (0, 100, 255), (850, 280, 20, 20), width=2)
+            font = pygame.font.Font(None, 50)
+            text = font.render(self.nu1, True, (0, 0, 0))
+            screen.blit(text, (880, 275))
+        if int(self.nu2) > 0:
+            for i in range(2):
+                pygame.draw.rect(screen, (150, 200, 255), (850 + i * 20, 220, 20, 20))
+                pygame.draw.rect(screen, (0, 100, 255), (850 + i * 20, 220, 20, 20), width=2)
+            font = pygame.font.Font(None, 50)
+            text = font.render(self.nu2, True, (0, 0, 0))
+            screen.blit(text, (900, 215))
+        if int(self.nu3) > 0:
+            for i in range(3):
+                pygame.draw.rect(screen, (150, 200, 255), (850 + i * 20, 160, 20, 20))
+                pygame.draw.rect(screen, (0, 100, 255), (850 + i * 20, 160, 20, 20), width=2)
+            font = pygame.font.Font(None, 50)
+            text = font.render(self.nu3, True, (0, 0, 0))
+            screen.blit(text, (920, 155))
+        if int(self.nu4) > 0:
+            for i in range(4):
+                pygame.draw.rect(screen, (150, 200, 255), (850 + i * 20, 100, 20, 20))
+                pygame.draw.rect(screen, (0, 100, 255), (850 + i * 20, 100, 20, 20), width=2)
+            font = pygame.font.Font(None, 50)
+            text = font.render(self.nu4, True, (0, 0, 0))
+            screen.blit(text, (940, 95))
+        if int(self.nu1) + int(self.nu2) + int(self.nu3) + int(self.nu4) == 0:
+            self.end = True
 
     def proof(self, sc, i, j):  # проверяет на возможность постановки единички
         i2, i1, j2, j1 = i, i, j, j
@@ -460,8 +505,8 @@ class Board:
                     pygame.draw.rect(sc, (0, 100, 255), (event.pos[0], event.pos[1], 160, 40), width=2)
 
     def starting(self):  # запуск вторичного поля
-        for i in range(len(self.board)):
-            for j in range(len(self.board[i])):
+        for i in range(10):
+            for j in range(10):
                 if self.board[i][j] == 5:
                     self.board[i][j] = 0
         self.running = False
@@ -499,6 +544,157 @@ class Board:
         if s.get_at((event.pos[0], event.pos[1]))[:3] == (0, 150, 0):
             self.starting()
 
+    def no_shoot(self, sp):
+        if len(sp) == 4:
+            red_zones(sp[0], sp[1], bot_board2)
+            red_zones(sp[2], sp[3], bot_board2)
+        elif len(sp) == 6:
+            red_zones(sp[0], sp[1], bot_board2)
+            red_zones(sp[2], sp[3], bot_board2)
+            red_zones(sp[4], sp[5], bot_board2)
+        elif len(sp) == 8:
+            red_zones(sp[0], sp[1], bot_board2)
+            red_zones(sp[2], sp[3], bot_board2)
+            red_zones(sp[4], sp[5], bot_board2)
+            red_zones(sp[6], sp[7], bot_board2)
+
+    def prove(self, i, j):
+        if (i + 1, j) in self.ranenie:  # 1-ая проверка
+            if bot_board[i][j] == 2:  # двойка
+                self.nu2 = str(int(self.nu2) - 1)
+                self.no_shoot([i, j, i + 1, j])
+            elif bot_board[i][j] == 3:  # тройка
+                if (i + 2, j) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i + 1, j, i + 2, j])
+                elif (i - 1, j) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i + 1, j, i - 1, j])
+            else:
+                if (i + 2, j) in self.ranenie:
+                    if (i + 3, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i + 2, j, i + 3, j])
+                    elif (i - 1, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i + 2, j, i - 1, j])
+                elif (i - 1, j) in self.ranenie:
+                    if (i - 2, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i + 2, j, i + 3, j])
+                    elif (i + 2, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i + 2, j, i - 1, j])
+        elif (i - 1, j) in self.ranenie:  # 2-ая проверка
+            if bot_board[i][j] == 2:
+                self.nu2 = str(int(self.nu2) - 1)
+                self.no_shoot([i - 1, j, i, j])
+            elif bot_board[i][j] == 3:
+                if (i - 2, j) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i - 1, j, i - 2, j])
+                elif (i + 1, j) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i + 1, j, i - 1, j])
+            else:
+                if (i - 2, j) in self.ranenie:
+                    if (i - 3, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i - 1, j, i - 2, j, i - 3, j])
+                    elif (i + 1, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i - 2, j, i - 1, j])
+                elif (i + 1, j) in self.ranenie:
+                    if (i + 2, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i + 2, j, i - 1, j])
+                    elif (i - 2, j) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i + 1, j, i - 2, j, i - 1, j])
+        elif (i, j + 1) in self.ranenie:  # 3-ья проверка
+            if bot_board[i][j] == 2:
+                self.nu2 = str(int(self.nu2) - 1)
+                self.no_shoot([i, j, i, j + 1])
+            elif bot_board[i][j] == 3:
+                if (i, j + 2) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i, j + 1, i, j + 2])
+                elif (i, j - 1) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i, j + 1, i, j - 1])
+            else:
+                if (i, j + 2) in self.ranenie:
+                    if (i, j + 3) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j + 2, i, j + 3])
+                    elif (i, j - 1) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j + 2, i, j - 1])
+                elif (i, j - 1) in self.ranenie:
+                    if (i, j + 2) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j + 2, i, j - 1])
+                    elif (i, j - 2) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j - 2, i, j - 1])
+        elif (i, j - 1) in self.ranenie:  # 4-ая проверка
+            if bot_board[i][j] == 2:
+                self.nu2 = str(int(self.nu2) - 1)
+                self.no_shoot([i, j - 1, i, j])
+            elif bot_board[i][j] == 3:
+                if (i, j - 2) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i, j - 1, i, j - 2])
+                elif (i, j + 1) in self.ranenie:
+                    self.nu3 = str(int(self.nu3) - 1)
+                    self.no_shoot([i, j, i, j + 1, i, j - 1])
+            else:
+                if (i, j - 2) in self.ranenie:
+                    if (i, j - 3) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j - 1, i, j - 2, i, j - 3])
+                    elif (i, j + 1) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j - 2, i, j - 1])
+                elif (i, j + 1) in self.ranenie:
+                    if (i, j - 2) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j - 2, i, j - 1])
+                    elif (i, j + 2) in self.ranenie:
+                        self.nu4 = str(int(self.nu4) - 1)
+                        self.no_shoot([i, j, i, j + 1, i, j + 2, i, j - 1])
+        self.ranenie.append((i, j))
+
+    def where_pressed2(self):
+        for i in range(10):
+            if event.pos[0] >= i * 40 + 430 and event.pos[0] <= i * 40 + 470:
+                for j in range(10):
+                    if event.pos[1] >= j * 40 + 10 and event.pos[1] <= j * 40 + 50:
+                        if bot_board[i][j] != 0 and bot_board[i][j] != 5 and bot_board != 6:
+                            if bot_board[i][j] == 1:
+                                self.nu1 = str(int(self.nu1) - 1)
+                                red_zones(i, j, bot_board2)
+                            else:
+                                self.prove(i, j)
+                            bot_board2[i][j] = 6
+                            self.mimo = False
+                        else:
+                            bot_board2[i][j] = 5
+                            self.mimo = True
+
+    def udar_bota(self):
+        x = randint(0, 9)
+        y = randint(0, 9)
+
+    def endrender(self):
+        screen.fill((230, 230, 230))
+        font = pygame.font.Font(None, 50)
+        if self.end:
+            text = font.render('Победа', True, (0, 0, 0))
+        else:
+            text = font.render('Поражение', True, (0, 0, 0))
+        screen.blit(text, (480, 285))
+
 
 def red_zones(i, j, board):  # ищет, где нужны красные зоны
     if i > 0 and j > 0:
@@ -527,7 +723,7 @@ def red_zones(i, j, board):  # ищет, где нужны красные зон
             board[i - 1][j + 1] = 5
 
 
-def ships_generator(length):  # создает корабль, указанного размера, в свободном месте bot_board
+def ships_generator(length):  # создает корабль указанного размера, в свободном месте bot_board
     ship_turning = randint(0, 1)  # поворот (0 - горизонтально, 1 - вертикально)
     is_empty = False
     if ship_turning == 0:
@@ -535,29 +731,29 @@ def ships_generator(length):  # создает корабль, указанно�
             x = randint(0, 10 - length)
             y = randint(0, 9)
             for i in range(x, x + length):
-                if bot_board[i][y] != 0:
+                if bot_board[y][i] != 0:
                     is_empty = False
                     break
                 is_empty = True
         for i in range(x, x + length):
-            bot_board[i][y] = length
+            bot_board[y][i] = length
     else:
         while is_empty is False:
             x = randint(0, 9)
             y = randint(0, 10 - length)
             for i in range(y, y + length):
-                if bot_board[x][i] != 0:
+                if bot_board[i][x] != 0:
                     is_empty = False
                     break
                 is_empty = True
         for i in range(y, y + length):
-            bot_board[x][i] = length
+            bot_board[i][x] = length
     if ship_turning == 0:
         for i in range(x, x + length):
-            red_zones(i, y, bot_board)
+            red_zones(y, i, bot_board)
     else:
         for i in range(y, y + length):
-            red_zones(x, i, bot_board)
+            red_zones(i, x, bot_board)
 
 
 if __name__ == '__main__':
@@ -598,18 +794,19 @@ if __name__ == '__main__':
                 pass
         clock.tick(fps)
 
-    screen = pygame.display.set_mode((840, 420))  # создание вторичного поля (там, где уже идёт игра)
+    screen = pygame.display.set_mode((1000, 420))  # создание вторичного поля (там, где уже идёт игра)
     screen.fill((230, 230, 230))
-    board.render2(screen)
+    board.render2()
     board.ships(screen)  # заполнение кораблями
     pygame.display.flip()
 
     # второй этап, сама игра
     board.running = True
     # создание кораблей второго поля
+    board.stage3 = True
     bot_board = [[0] * 10 for _ in range(10)]
+    bot_board2 = [[0] * 10 for _ in range(10)]
     # Четверные корабли
-    ship_turning = randint(0, 1)  # поворот (0 - горизонтально, 1 - вертикально)
     ships_generator(4)
     # Тройные корабли
     for i in range(2):
@@ -625,11 +822,29 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 exit()
-            elif event.type == pygame.MOUSEMOTION:
-                pass
             elif event.type == pygame.MOUSEBUTTONUP:
-                pass
-            else:
-                pass
+                screen.fill((230, 230, 230))
+                board.where_pressed2()
+                board.render2()
+                pygame.display.flip()
+                if board.mimo:
+                    board.udar_bota()
+                    board.render2()
+                    pygame.display.flip()
+            elif event.type == pygame.MOUSEMOTION:
+                pygame.display.flip()
+            if board.end:
+                board.running = False
+            if board.porajenie:
+                board.running = False
         clock.tick(fps)
+
+    board.endrender()
+    pygame.display.flip()
+    board.running = True
+    while board.running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+
     pygame.quit()
