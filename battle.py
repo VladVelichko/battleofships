@@ -1,21 +1,6 @@
 import pygame
 from random import randint
 
-'''
-Кораблики и вообще весь новый дизайн шикарны, ставлю лайк!
-
-Новое: 
-Написаны функции, ответственные за удары игрока и пометки подбитых игроком кораблей
-Написаны функции, отвечающие за пометки полей вокруг подбитых ранее кораблей
-    (т.е. куда бессмысленно бить)
-Добавлено количество оставшихся кораблей бота
-После победы игрока выводится слово "Победа"
-
-Что ещё нужно сделать:
-
-1. Написать функцию ударов бота после промахов (я уже начал, называется udar_bota)
-2. На вторичном поле между зонами игрока и компьютера поставить стрелочку (кто ходит)
-'''
 
 class Board:
     def __init__(self):  # инициализация
@@ -28,10 +13,15 @@ class Board:
         self.stage2 = False  # при значении True ограничивает действия с кораблями во время игры
         self.stage3 = False  # при значении True ограничивает действия с кораблями во время игры
         self.turning = False  # при значении True корабль ставится вертикально, False - горизонтально
-        self.mimo = True
+        self.mimo = False
         self.ranenie = []
         self.end = False
         self.porajenie = False
+        self.bot_ranil = False
+        self.bot_ranenie = []  # записываются ранения корабля
+        self.ship_direction = 0  # направление раненного корабля: 1 - горизонтально, 2 - вертикально
+        self.rz_permission = False
+        self.bot_num1, self.bot_num2, self.bot_num3, self.bot_num4 = 4, 3, 2, 1
 
     def render1(self, s):  # рисует кораблики (справа) и поле, отвечает за кол-во корабликов
         for j in range(10):
@@ -75,21 +65,27 @@ class Board:
                 pygame.draw.rect(screen, ((150, 200, 255)), (10 + i * 40, 10 + j * 40, 40, 40), width=2)
         for j in range(10):
             for i in range(10):
-                pygame.draw.rect(screen, ((150, 200, 255)), (430 + i * 40, 10 + j * 40, 40, 40), width=2)
+                pygame.draw.rect(screen, ((150, 200, 255)), (440 + i * 40, 10 + j * 40, 40, 40), width=2)
         for i in range(10):
             for j in range(10):
-                if self.board[i][j] != 0 and self.board[i][j] != 5:
+                if self.board[i][j] == 6:
+                    pygame.draw.rect(screen, (255, 160, 160), (i * 40 + 10, j * 40 + 10, 40, 40))
+                    pygame.draw.rect(screen, (255, 80, 80), (i * 40 + 10, j * 40 + 10, 40, 40), width=2)
+                elif self.board[i][j] != 0 and self.board[i][j] != 5:
                     pygame.draw.rect(screen, (150, 200, 255), (i * 40 + 10, j * 40 + 10, 40, 40))
                     pygame.draw.rect(screen, (0, 100, 255), (i * 40 + 10, j * 40 + 10, 40, 40), width=2)
+                elif self.board[i][j] == 5:
+                    pygame.draw.rect(screen, (160, 160, 160), (i * 40 + 10, j * 40 + 10, 40, 40))
+                    pygame.draw.rect(screen, (80, 80, 80), (i * 40 + 10, j * 40 + 10, 40, 40), width=2)
         if self.stage3:
             for i in range(10):
                 for j in range(10):
                     if bot_board2[i][j] == 6:
-                        pygame.draw.rect(screen, (255, 160, 160), (i * 40 + 430, j * 40 + 10, 40, 40))
-                        pygame.draw.rect(screen, (255, 80, 80), (i * 40 + 430, j * 40 + 10, 40, 40), width=2)
+                        pygame.draw.rect(screen, (255, 160, 160), (i * 40 + 440, j * 40 + 10, 40, 40))
+                        pygame.draw.rect(screen, (255, 80, 80), (i * 40 + 440, j * 40 + 10, 40, 40), width=2)
                     if bot_board2[i][j] == 5:
-                        pygame.draw.rect(screen, (160, 160, 160), (i * 40 + 430, j * 40 + 10, 40, 40))
-                        pygame.draw.rect(screen, (80, 80, 80), (i * 40 + 430, j * 40 + 10, 40, 40), width=2)
+                        pygame.draw.rect(screen, (160, 160, 160), (i * 40 + 440, j * 40 + 10, 40, 40))
+                        pygame.draw.rect(screen, (80, 80, 80), (i * 40 + 440, j * 40 + 10, 40, 40), width=2)
         if int(self.nu1) > 0:
             pygame.draw.rect(screen, (150, 200, 255), (850, 280, 20, 20))
             pygame.draw.rect(screen, (0, 100, 255), (850, 280, 20, 20), width=2)
@@ -119,6 +115,14 @@ class Board:
             screen.blit(text, (940, 95))
         if int(self.nu1) + int(self.nu2) + int(self.nu3) + int(self.nu4) == 0:
             self.end = True
+        if self.bot_num1 + self.bot_num2 + self.bot_num3 + self.bot_num4 == 0:
+            self.porajenie = True
+        font = pygame.font.Font(None, 50)
+        if self.mimo:
+            text = font.render('<', True, (255, 0, 0), (230, 230, 230))
+        else:
+            text = font.render('>', True, (0, 255, 0), (230, 230, 230))
+        screen.blit(text, (415, 190))
 
     def proof(self, sc, i, j):  # проверяет на возможность постановки единички
         i2, i1, j2, j1 = i, i, j, j
@@ -667,60 +671,186 @@ class Board:
 
     def where_pressed2(self):
         for i in range(10):
-            if event.pos[0] >= i * 40 + 430 and event.pos[0] <= i * 40 + 470:
+            if event.pos[0] >= i * 40 + 440 and event.pos[0] <= i * 40 + 480:
                 for j in range(10):
                     if event.pos[1] >= j * 40 + 10 and event.pos[1] <= j * 40 + 50:
-                        if bot_board[i][j] != 0 and bot_board[i][j] != 5 and bot_board != 6:
-                            if bot_board[i][j] == 1:
-                                self.nu1 = str(int(self.nu1) - 1)
-                                red_zones(i, j, bot_board2)
+                        if bot_board2[i][j] != 6 and bot_board2[i][j] != 5 and self.mimo is False:
+                            if bot_board[i][j] != 0 and bot_board[i][j] != 5\
+                                    and bot_board[i][j] != 6:
+                                if bot_board[i][j] == 1:
+                                    self.nu1 = str(int(self.nu1) - 1)
+                                    red_zones(i, j, bot_board2)
+                                else:
+                                    self.prove(i, j)
+                                bot_board2[i][j] = 6
+                                self.mimo = False
                             else:
-                                self.prove(i, j)
-                            bot_board2[i][j] = 6
-                            self.mimo = False
-                        else:
-                            bot_board2[i][j] = 5
-                            self.mimo = True
+                                bot_board2[i][j] = 5
+                                self.mimo = True
 
     def udar_bota(self):
-        x = randint(0, 9)
-        y = randint(0, 9)
+        if self.bot_ranil is False:
+            x = randint(0, 9)
+            y = randint(0, 9)
+            while self.board[x][y] == 6 or self.board[x][y] == 5:
+                x = randint(0, 9)
+                y = randint(0, 9)
+            if self.board[x][y] != 0:
+                self.length = self.board[x][y]
+                if self.board[x][y] == 1:
+                    self.board[x][y] = 6
+                    self.bot_num1 -= 1
+                    if x > 0 and y > 0:
+                        self.board[x - 1][y - 1] = 5
+                    if y < 9 and x < 9:
+                        self.board[x + 1][y + 1] = 5
+                    if x > 0:
+                        self.board[x - 1][y] = 5
+                    if x < 9:
+                        self.board[x + 1][y] = 5
+                    if y < 9:
+                        self.board[x][y + 1] = 5
+                    if y > 0:
+                        self.board[x][y - 1] = 5
+                    if x < 9 and y > 0:
+                        self.board[x + 1][y - 1] = 5
+                    if x > 0 and y < 9:
+                        self.board[x - 1][y + 1] = 5
+                else:
+                    self.board[x][y] = 6
+                    self.bot_ranil = True
+                    if (x, y) not in self.bot_ranenie:
+                        self.bot_ranenie.append((x, y))
+            else:
+                self.board[x][y] = 5
+                self.mimo = False
+        else:
+            if self.ship_direction == 0:
+                x = self.bot_ranenie[0][0]
+                y = self.bot_ranenie[0][1]
+                directions = [1, 2, 3, 4]
+                # Направления: 1 - вправо, 2 - вниз, 3 - влево, 4 - вверх
+                if x == 0:
+                    directions.remove(3)
+                else:
+                    if self.board[x - 1][y] == 5:
+                        directions.remove(3)
+                if x == 9:
+                    directions.remove(1)
+                else:
+                    if self.board[x + 1][y] == 5:
+                        directions.remove(1)
+                if y == 0:
+                    directions.remove(4)
+                else:
+                    if self.board[x][y - 1] == 5:
+                        directions.remove(4)
+                if y == 9:
+                    directions.remove(2)
+                else:
+                    if self.board[x][y + 1] == 5:
+                        directions.remove(2)
+                self.direction = directions[randint(0, len(directions) - 1)]
+                if self.direction == 1:
+                    self.direction_check(x + 1, y, 1)
+                elif self.direction == 2:
+                    self.direction_check(x, y + 1, 2)
+                elif self.direction == 3:
+                    self.direction_check(x - 1, y, 1)
+                else:
+                    self.direction_check(x, y - 1, 2)
+            else:
+                if self.direction == 1:
+                    x = self.bot_ranenie[-1][0]
+                    y = self.bot_ranenie[-1][1]
+                    self.direction_check(x + 1, y, 1)
+                elif self.direction == 3:
+                    x = self.bot_ranenie[0][0]
+                    y = self.bot_ranenie[0][1]
+                    self.direction_check(x - 1, y, 1)
+                elif self.direction == 2:
+                    x = self.bot_ranenie[-1][0]
+                    y = self.bot_ranenie[-1][1]
+                    self.direction_check(x, y + 1, 2)
+                elif self.direction == 4:
+                    x = self.bot_ranenie[0][0]
+                    y = self.bot_ranenie[0][1]
+                    self.direction_check(x, y - 1, 2)
+            self.is_destroyed(self.bot_ranenie)
+
+    def is_destroyed(self, ranenie):
+        if len(ranenie) == self.length:
+            self.rz_permission = True
+            for i in ranenie:
+                red_zones(i[0], i[1], self.board)
+            self.rz_permission = False
+            self.ship_direction = 0
+            self.bot_ranil = False
+            self.bot_ranenie = []
+            self.direction = 0
+            if self.length == 2:
+                self.bot_num2 -= 1
+            elif self.length == 3:
+                self.bot_num3 -= 1
+            else:
+                self.bot_num4 -= 1
+
+    def direction_check(self, x, y, d):
+        if -1 < x < 10 and -1 < y < 10 and self.board[x][y] != 0:
+            self.ship_direction = d
+            self.board[x][y] = 6
+            if (self.direction == 1 or self.direction == 2) and (x, y) not in self.bot_ranenie:
+                self.bot_ranenie.append((x, y))
+            elif (x, y) not in self.bot_ranenie:
+                self.bot_ranenie.insert(0, (x, y))
+        else:
+            self.board[x][y] = 5
+            self.mimo = False
+            if self.ship_direction != 0:
+                if self.direction == 1:
+                    self.direction = 3
+                elif self.direction == 2:
+                    self.direction = 4
+                elif self.direction == 3:
+                    self.direction = 1
+                else:
+                    self.direction = 2
 
     def endrender(self):
-        screen.fill((230, 230, 230))
-        font = pygame.font.Font(None, 50)
+        font = pygame.font.Font(None, 30)
         if self.end:
-            text = font.render('Победа', True, (0, 0, 0))
-        else:
-            text = font.render('Поражение', True, (0, 0, 0))
-        screen.blit(text, (480, 285))
+            text = font.render('Победа!', True, (0, 0, 0))
+        if self.porajenie:
+            text = font.render('Поражение!', True, (0, 0, 0))
+        screen.blit(text, (850, 380))
 
 
-def red_zones(i, j, board):  # ищет, где нужны красные зоны
-    if i > 0 and j > 0:
-        if board[i - 1][j - 1] == 0:
-            board[i - 1][j - 1] = 5
-    if j < 9 and i < 9:
-        if board[i + 1][j + 1] == 0:
-            board[i + 1][j + 1] = 5
-    if i > 0:
-        if board[i - 1][j] == 0:
-            board[i - 1][j] = 5
-    if i < 9:
-        if board[i + 1][j] == 0:
-            board[i + 1][j] = 5
-    if j < 9:
-        if board[i][j + 1] == 0:
-            board[i][j + 1] = 5
-    if j > 0:
-        if board[i][j - 1] == 0:
-            board[i][j - 1] = 5
-    if i < 9 and j > 0:
-        if board[i + 1][j - 1] == 0:
-            board[i + 1][j - 1] = 5
-    if i > 0 and j < 9:
-        if board[i - 1][j + 1] == 0:
-            board[i - 1][j + 1] = 5
+def red_zones(i, j, board2):  # ищет, где нужны красные зоны
+    if board.stage2 is False or board.board != board2 or board.rz_permission:
+        if i > 0 and j > 0:
+            if board2[i - 1][j - 1] == 0:
+                board2[i - 1][j - 1] = 5
+        if j < 9 and i < 9:
+            if board2[i + 1][j + 1] == 0:
+                board2[i + 1][j + 1] = 5
+        if i > 0:
+            if board2[i - 1][j] == 0:
+                board2[i - 1][j] = 5
+        if i < 9:
+            if board2[i + 1][j] == 0:
+                board2[i + 1][j] = 5
+        if j < 9:
+            if board2[i][j + 1] == 0:
+                board2[i][j + 1] = 5
+        if j > 0:
+            if board2[i][j - 1] == 0:
+                board2[i][j - 1] = 5
+        if i < 9 and j > 0:
+            if board2[i + 1][j - 1] == 0:
+                board2[i + 1][j - 1] = 5
+        if i > 0 and j < 9:
+            if board2[i - 1][j + 1] == 0:
+                board2[i - 1][j + 1] = 5
 
 
 def ships_generator(length):  # создает корабль указанного размера, в свободном месте bot_board
@@ -764,7 +894,7 @@ if __name__ == '__main__':
 
     board = Board()
 
-    fps = 50
+    fps = 60
     clock = pygame.time.Clock()
 
     board.running = True
@@ -796,6 +926,10 @@ if __name__ == '__main__':
 
     screen = pygame.display.set_mode((1000, 420))  # создание вторичного поля (там, где уже идёт игра)
     screen.fill((230, 230, 230))
+    for i in range(10):
+        for j in range(10):
+            if board.board[i][j] == 5:
+                board.board[i][j] = 0
     board.render2()
     board.ships(screen)  # заполнение кораблями
     pygame.display.flip()
@@ -820,6 +954,10 @@ if __name__ == '__main__':
 
     while board.running:
         for event in pygame.event.get():
+            if board.mimo:
+                board.udar_bota()
+                board.render2()
+                pygame.display.flip()
             if event.type == pygame.QUIT:
                 exit()
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -827,10 +965,6 @@ if __name__ == '__main__':
                 board.where_pressed2()
                 board.render2()
                 pygame.display.flip()
-                if board.mimo:
-                    board.udar_bota()
-                    board.render2()
-                    pygame.display.flip()
             elif event.type == pygame.MOUSEMOTION:
                 pygame.display.flip()
             if board.end:
