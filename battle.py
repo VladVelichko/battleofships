@@ -804,8 +804,9 @@ class Board:
             elif (x, y) not in self.bot_ranenie:
                 self.bot_ranenie.insert(0, (x, y))
         else:
-            self.board[x][y] = 5
-            self.mimo = False
+            if -1 < x < 10 and -1 < y < 10:
+                self.board[x][y] = 5
+                self.mimo = False
             if self.ship_direction != 0:
                 if self.direction == 1:
                     self.direction = 3
