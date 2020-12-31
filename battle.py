@@ -2,6 +2,10 @@ import pygame
 from random import randint
 
 
+'''Инструкция к игре:
+1. Расставьте корабли, поворачивайте крупные нажатием кнопки k
+2. Бейте по полю компьютера, старайтесь найти все его корабли'''
+
 class Board:
     def __init__(self):  # инициализация
         self.board = [[0] * 10 for _ in range(10)]
@@ -955,10 +959,6 @@ if __name__ == '__main__':
 
     while board.running:
         for event in pygame.event.get():
-            if board.mimo:
-                board.udar_bota()
-                board.render2()
-                pygame.display.flip()
             if event.type == pygame.QUIT:
                 exit()
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -972,7 +972,12 @@ if __name__ == '__main__':
                 board.running = False
             if board.porajenie:
                 board.running = False
-        clock.tick(fps)
+        if board.mimo:
+            for i in range(60):
+                clock.tick(fps)
+            board.udar_bota()
+            board.render2()
+            pygame.display.flip()
 
     board.endrender()
     pygame.display.flip()
